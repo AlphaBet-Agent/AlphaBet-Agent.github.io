@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AlphaBet: Reinforcement Learning for LLM Event Forecasting Agents</title>
+<meta name="description" content="AlphaBet trains one tool-using LLM agent to search, read, and report probabilities at several dates before an event resolves; one resolved outcome then grades every date. Brier 0.731 → 0.626 on Forecast-Dojo and 0.612 → 0.528 on FutureX for GLM-4.5-Air.">
+<meta name="theme-color" content="#F7F6F1">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AlphaBet: Reinforcement Learning for LLM Event Forecasting Agents">
+<meta property="og:description" content="AlphaBet trains one LLM to acquire evidence, reason, and report probabilities as information evolves.">
+<meta name="twitter:card" content="summary">
+<!-- Once the page has a public URL, add og:image / twitter:image (absolute URL to assets/figures/teaser_forecast_dojo.png), og:url and a canonical link. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f6f4ed'/%3E%3Cpath d='M24 24.5 C19.5 24.5 16.5 14 10.5 14 C6.5 14 5.5 19.5 7.5 23 C9.5 26.5 14.5 25.5 17 21.5 L24.3 10.4' fill='none' stroke='%23273b31' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='26.4' cy='7.3' r='2.9' fill='%239d593f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous"></noscript>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="#top" aria-label="AlphaBet home">
+      <svg class="brand-mark" width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M24 24.5 C19.5 24.5 16.5 14 10.5 14 C6.5 14 5.5 19.5 7.5 23 C9.5 26.5 14.5 25.5 17 21.5 L24.3 10.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26.4" cy="7.3" r="2.8" fill="#9d593f"/></svg>
+      <span>AlphaBet</span>
+    </a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a href="#results"><span class="no">01</span>Results</a>
+      <a href="#idea" class="hide-sm"><span class="no">02</span>Idea</a>
+      <a href="#theory" class="hide-sm"><span class="no">03</span>Theory</a>
+      <a href="#analysis" class="hide-sm"><span class="no">04</span>Analysis</a>
+      <a href="#paper" data-link="paper">Paper</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<noscript><p class="noscript">The interactive figures on this page need JavaScript. Every number is also in the paper.</p></noscript>
+
+<!-- ============================ HERO (reference layout) ============================ -->
+<section class="hero container" id="top" aria-labelledby="hero-title">
+  <p class="eyebrow"><span class="asterisk" aria-hidden="true">✳</span> AlphaBet · Agentic RL for event forecasting</p>
+  <div class="hero-layout">
+    <h1 id="hero-title">Learn to forecast<br><em>as the world evolves.</em></h1>
+    <div class="hero-intro">
+      <p>AlphaBet trains one LLM to acquire evidence, reason, and report probabilities as information evolves.</p>
+      <div class="links" id="links">
+        <a class="btn btn--primary" href="#paper">Paper</a>
+        <a class="btn btn--primary" href="https://anonymous.4open.science/r/AlphaBet-2417/" target="_blank" rel="noopener">Code</a>
+        <a class="btn btn--primary" href="https://huggingface.co/datasets/liqinye/Forecast-Dojo" target="_blank" rel="noopener">Data &amp; Models</a>
+        <a class="btn btn--primary" href="#paper">BibTeX</a>
+      </div>
+    </div>
+  </div>
+  <div class="hero-record">
+    <p>Reinforcement Learning for LLM Event Forecasting Agents</p>
+    <span>Georgia Tech <span class="separator" aria-hidden="true">/</span> Amazon</span>
+  </div>
+</section>
+
+<!-- ============================ 01 RESULTS ============================ -->
+<section class="block" id="results">
+  <div class="container">
+    <div class="block__head block__head--single">
+      <div>
+        <p class="eyebrow"><span class="no">01</span> The result</p>
+        <h2>Higher accuracy, lower Brier, <em>on both benchmarks.</em></h2>
+      </div>
+    </div>
+    <figure>
+      <div id="compass"></div>
+    </figure>
+    <div class="stats" aria-label="Headline numbers">
+      <div class="stats__group">
+        <div class="stats__bench">Forecast-Dojo</div>
+        <div class="stats__pair">
+          <div class="stat"><div class="stat__num num">0.731<span class="to">→</span><span class="after">0.626</span></div><div class="stat__metric">Brier</div></div>
+          <div class="stat"><div class="stat__num num">41.6<span class="to">→</span><span class="after">50.5<small>%</small></span></div><div class="stat__metric">Accuracy</div></div>
+        </div>
+      </div>
+      <div class="stats__group">
+        <div class="stats__bench">FutureX</div>
+        <div class="stats__pair">
+          <div class="stat"><div class="stat__num num">0.612<span class="to">→</span><span class="after">0.528</span></div><div class="stat__metric">Brier</div></div>
+          <div class="stat"><div class="stat__num num">51.3<span class="to">→</span><span class="after">57.9<small>%</small></span></div><div class="stat__metric">Accuracy</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="acc">
+      <details id="table1">
+        <summary><span class="acc__plus" aria-hidden="true"></span>Full results table</summary>
+        <div class="acc__body rt-wrap" id="results-table"></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 02 IDEA ============================ -->
+<section class="block block--tint" id="idea">
+  <div class="container">
+    <div class="block__head">
+      <div>
+        <p class="eyebrow"><span class="no">02</span> The idea · longitudinal forecasting training</p>
+        <h2>Forecast one question on multiple dates.<br><em>One outcome scores them all.</em></h2>
+      </div>
+      <p class="dek">AlphaBet revisits one question on several dates, each time searching only the news published by then. <strong>Each dated score is a training reward for the shared policy.</strong></p>
+    </div>
+    <figure>
+      <div class="panel panel--flush" id="episode"></div>
+    </figure>
+    <div class="idea__row">
+      <div>
+        <div class="boot__num num">1,028<span class="to">→</span><span class="after">3,965</span></div>
+        <div class="boot__lbl"><b>events</b> → <b>question-dates</b></div>
+        <p class="boot__text note">Every question-date is its own training sample: one resolved event, 3.9 samples on average, no extra labels.</p>
+      </div>
+      <div class="mem" role="group" aria-label="Two ways to revisit a question">
+        <div class="mem__item">
+          <svg viewBox="0 0 150 44" aria-hidden="true"><line class="vt-line" x1="8" x2="142" y1="22" y2="22"/><circle class="vt-dot vt-dot--on" cx="8" cy="22" r="6"/><circle class="vt-dot vt-dot--on" cx="52" cy="22" r="6"/><circle class="vt-dot vt-dot--on" cx="97" cy="22" r="6"/><circle class="vt-dot vt-dot--on" cx="142" cy="22" r="6"/></svg>
+          <div><div class="mem__name">memory-free</div><p class="mem__text">Every scheduled date starts fresh: the agent searches the dated corpus again and reports again. Nothing is carried from one date to the next.</p></div>
+        </div>
+        <div class="mem__item">
+          <svg viewBox="0 0 150 44" aria-hidden="true"><line class="vt-line" x1="8" x2="142" y1="22" y2="22"/><path class="vt-arrow" d="M14 12 Q 30 -2 46 12"/><path class="vt-arrow" d="M58 12 Q 74 -2 91 12"/><path class="vt-arrow" d="M103 12 Q 119 -2 136 12"/><circle class="vt-dot vt-dot--on" cx="8" cy="22" r="6"/><circle class="vt-dot vt-dot--on" cx="52" cy="22" r="6"/><circle class="vt-dot vt-dot--on" cx="97" cy="22" r="6"/><circle class="vt-dot vt-dot--on" cx="142" cy="22" r="6"/><text class="vt-lbl" x="75" y="40" text-anchor="middle">notebook carried forward</text></svg>
+          <div><div class="mem__name">memory-on</div><p class="mem__text">With each forecast the agent also writes a belief notebook: its probabilities, supporting evidence, open questions. Only the notebook is carried to the next date; everything else starts fresh.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 03 THEORY ============================ -->
+<section class="block" id="theory">
+  <div class="container">
+    <div class="block__head block__head--single">
+      <div>
+        <p class="eyebrow"><span class="no">03</span> Two propositions</p>
+        <h2 class="h2--line">Why one outcome is enough, <em>and why the mean is enough.</em></h2>
+      </div>
+    </div>
+    <div class="props">
+      <article class="prop">
+        <p class="prop__eyebrow"><b>Proposition 1</b> · agentic forecast properness</p>
+        <h3>With a strictly proper score and no outcome leakage, expected regret is exactly an information gap plus a reporting gap.</h3>
+        <div class="prop__math math" data-tex="\underbrace{J^\star - J_{\mathrm{forecast}}}_{\text{expected regret}} = \mathbb{E}\Bigl[\sum_{t}\Bigl(\underbrace{D_S(q_t, q^{H}_{t})}_{\text{information gap}} + \underbrace{D_S(q^{H}_{t}, p_t)}_{\text{reporting gap}}\Bigr)\Bigr]">regret = E[ Σ_t ( D_S(q_t, q_t^H) + D_S(q_t^H, p_t) ) ]</div>
+        <dl class="prop__defs">
+          <div><dt><i>q</i></dt><dd>posterior given the full dated corpus</dd></div>
+          <div><dt><i>q<sup>H</sup></i></dt><dd>posterior given what the agent retrieved</dd></div>
+          <div><dt><i>p</i></dt><dd>what the agent reported</dd></div>
+        </dl>
+        <div class="prop__fig">
+          <svg viewBox="0 0 520 110" aria-hidden="true">
+            <line class="g-line" x1="30" x2="490" y1="34" y2="34"/>
+            <circle class="g-dot" cx="46" cy="34" r="6"/><circle class="g-dot g-dot--ring" cx="270" cy="34" r="6"/><circle class="g-dot g-dot--p" cx="474" cy="34" r="7"/>
+            <text class="g-name" x="46" y="16" text-anchor="middle">q</text><text class="g-name" x="270" y="16" text-anchor="middle">q<tspan class="g-sup" dy="-6" font-size="62%">H</tspan></text><text class="g-name" x="474" y="16" text-anchor="middle">p</text>
+            <path class="g-brace" d="M56 50 v8 h204 v-8"/><path class="g-brace" d="M282 50 v8 h182 v-8"/>
+            <text class="g-gap" x="158" y="78" text-anchor="middle">information gap<tspan class="g-gloss" x="158" dy="17">acquiring evidence</tspan></text>
+            <text class="g-gap g-gap--p" x="373" y="78" text-anchor="middle">reporting gap<tspan class="g-gloss" x="373" dy="17">stating probabilities</tspan></text>
+          </svg>
+        </div>
+        <p class="prop__take">Zero regret exactly when <b>p = q<sup>H</sup> = q</b> at every date. One outcome scores the sum of both gaps.</p>
+      </article>
+      <article class="prop">
+        <p class="prop__eyebrow"><b>Proposition 2</b> · GRPO without std</p>
+        <h3>Mean-centering only rescales the update of the proper score. Dividing by the group’s spread tilts its target.</h3>
+        <div class="prop__math math" data-tex="\tilde q^{H}(k) = \frac{q^{H}(k)\,/\,(\sigma_k+\varepsilon)}{\sum_j q^{H}(j)\,/\,(\sigma_j+\varepsilon)}">q̃ᴴ(k) = [qᴴ(k)/(σ_k+ε)] / Σ_j [qᴴ(j)/(σ_j+ε)]</div>
+        <div class="prop__cmp">
+          <div class="prop__col prop__col--ours">
+            <p class="prop__colhead">mean-centered · AlphaBet</p>
+            <p class="prop__colmath math math--inline" data-tex="A = R - \bar R">A = R − mean(R)</p>
+            <p>Same direction, scaled by 1 − 1/<b>G</b>.</p>
+          </div>
+          <div class="prop__col">
+            <p class="prop__colhead">standardized · vanilla GRPO</p>
+            <p class="prop__colmath math math--inline" data-tex="A = (R - \bar R)\,/\,(\sigma + \varepsilon)">A = (R − mean(R)) / (σ + ε)</p>
+            <p>As <b>G</b> grows, the target tilts to <b>q̃<sup>H</sup></b> unless every <b>σ<sub>k</sub></b> is equal.</p>
+          </div>
+        </div>
+        <div class="prop__fig">
+          <svg viewBox="0 0 520 140" aria-hidden="true">
+            <text class="tb-lbl" x="30" y="16">mean-centered · AlphaBet</text>
+            <rect class="tb-q" x="30" y="48" width="22" height="64" rx="2"/><rect class="tb-ours" x="54" y="48" width="22" height="64" rx="2"/>
+            <rect class="tb-q" x="96" y="80" width="22" height="32" rx="2"/><rect class="tb-ours" x="120" y="80" width="22" height="32" rx="2"/>
+            <rect class="tb-q" x="162" y="101" width="22" height="11" rx="2"/><rect class="tb-ours" x="186" y="101" width="22" height="11" rx="2"/>
+            <text class="tb-sub" x="30" y="134">target stays <tspan class="tb-sym">q</tspan><tspan class="tb-sym" dy="-4" font-size="8">H</tspan></text>
+            <text class="tb-lbl" x="290" y="16">standardized</text>
+            <rect class="tb-q" x="290" y="48" width="22" height="64" rx="2"/><rect class="tb-t" x="314" y="37" width="22" height="75" rx="2"/>
+            <rect class="tb-q" x="356" y="80" width="22" height="32" rx="2"/><rect class="tb-t" x="380" y="89" width="22" height="23" rx="2"/>
+            <rect class="tb-q" x="422" y="101" width="22" height="11" rx="2"/><rect class="tb-t" x="446" y="103" width="22" height="9" rx="2"/>
+            <text class="tb-sub" x="290" y="134">target tilts to <tspan class="tb-sym">q̃</tspan><tspan class="tb-sym" dy="-4" font-size="8">H</tspan><tspan dy="4"> · sharper in our runs</tspan></text>
+            <g class="tb-key"><rect class="tb-q" x="404" y="7" width="10" height="10" rx="1.5"/><text x="418" y="16"><tspan class="tb-sym">q</tspan><tspan class="tb-sym" dy="-4" font-size="8">H</tspan></text><rect class="tb-t" x="448" y="7" width="10" height="10" rx="1.5"/><text x="462" y="16">target</text></g>
+          </svg>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 04 ANALYSIS ============================ -->
+<section class="block block--tint" id="analysis">
+  <div class="container">
+    <div class="block__head block__head--single">
+      <div>
+        <p class="eyebrow"><span class="no">04</span> Analysis</p>
+        <h2 class="h2--line">Where the gains come from, <em>and what breaks calibration.</em></h2>
+      </div>
+    </div>
+
+    <div class="ev" id="ev-longitudinal">
+      <div class="ev__text">
+        <h3>Every date beats one date, most of all far from settlement.</h3>
+        <p>Same 1,028 events; one forecast date per event, or all of them. The gap widens farther from settlement.</p>
+        <div class="ev__stat"><div class="stat__num num">0.668<span class="to">→</span><span class="after">0.626</span></div><div class="stat__label"><b>Brier</b> · single-date → memory-free</div></div>
+      </div>
+      <div class="panel panel--chart" id="horizon-chart"></div>
+    </div>
+
+    <div class="ev ev--wide" id="ev-swap">
+      <div class="ev__head">
+        <h3>Better evidence seeker,<br>better reporter.</h3>
+        <p>Freeze the articles each agent retrieved and hand them to tool-free readers. Swapping the reader moves Brier about four times as much as swapping the evidence, and AlphaBet’s evidence helps every reader.</p>
+      </div>
+      <div class="panel panel--chart" id="swap-widget"></div>
+    </div>
+
+    <div class="ev ev--wide" id="ev-grpo">
+      <div class="ev__head">
+        <h3>Standardization keeps the accuracy and breaks properness.</h3>
+        <p>The same training with and without GRPO’s standard-deviation step. With it, both proper scores come out worse and the policy grows over-confident; accuracy remains comparable.</p>
+      </div>
+      <div class="panel panel--chart" id="curves"></div>
+      <div class="panel panel--chart ev__second" id="gdiag"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 05 TAKEAWAYS + CITE ============================ -->
+<section class="block" id="short">
+  <div class="container">
+    <div class="block__head">
+      <div>
+        <p class="eyebrow"><span class="no">05</span> In short</p>
+        <h2>Learn from every day<br><em>an event stayed open.</em></h2>
+      </div>
+      <p class="dek">AlphaBet is an outcome-based RL recipe for agentic forecasting: one policy, many dated information states, one proper-score reward per date, and GRPO without standard-deviation normalization, so the reward keeps its scale.</p>
+    </div>
+    <div class="take">
+      <div class="take__item"><span class="no">01</span><h3>Supervise every date.</h3><p>A resolved event properly scores each pre-resolution forecast, turning 1,028 events into 3,965 training states.</p></div>
+      <div class="take__item"><span class="no">02</span><h3>Train both halves.</h3><p>The gains come from better evidence and better probabilities: AlphaBet’s retrieved articles help every reader, and AlphaBet reads the same articles better.</p></div>
+      <div class="take__item"><span class="no">03</span><h3>Mind the normalization.</h3><p>Standard-deviation normalization tilts the proper-score target and over-sharpens forecasts; mean-centering alone keeps the incentive honest.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ THE PAPER ============================ -->
+<section class="block block--dark" id="paper">
+  <div class="container">
+    <p class="eyebrow"><span class="no">The paper</span></p>
+    <div class="paper__grid">
+      <div>
+        <h2 class="paper__name">AlphaBet</h2>
+        <p class="paper__title">Reinforcement Learning for LLM Event Forecasting Agents</p>
+        <p class="paper__authors">Liqin Ye<sup>1†</sup>, Rongzhi Zhang<sup>2</sup>, Xin Liu<sup>2</sup>, Zheng Li<sup>2</sup>, Yuan He<sup>2</sup>,<br>Qingyu Yin<sup>2</sup>, Priyanka Nigam<sup>2</sup>, Chao Zhang<sup>1</sup></p>
+        <p class="paper__affils"><sup>1</sup>Georgia Institute of Technology &nbsp;·&nbsp; <sup>2</sup>Amazon &nbsp;·&nbsp; <sup>†</sup>Work done during an internship at Amazon &nbsp;·&nbsp; Correspondence: <a href="mailto:liqiny@gatech.edu">liqiny@gatech.edu</a></p>
+        <div class="paper__links" id="links-2">
+          <a class="btn btn--primary" href="#paper">Paper</a>
+          <a class="btn btn--primary" href="https://anonymous.4open.science/r/AlphaBet-2417/" target="_blank" rel="noopener">Code</a>
+          <a class="btn btn--primary" href="https://huggingface.co/datasets/liqinye/Forecast-Dojo" target="_blank" rel="noopener">Data &amp; Models</a>
+        </div>
+      </div>
+      <div class="paper__cite">
+        <p class="paper__cite-label">Cite this work</p>
+        <div class="cite-wrap">
+          <button class="copy-btn" type="button" id="copy-bib" aria-label="Copy BibTeX" title="Copy BibTeX"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+<pre id="bibtex">@article{ye2026alphabet,
+  title   = {AlphaBet: Reinforcement Learning
+             for LLM Event Forecasting Agents},
+  author  = {Ye, Liqin and Zhang, Rongzhi and
+             Liu, Xin and Li, Zheng and He, Yuan
+             and Yin, Qingyu and Nigam, Priyanka
+             and Zhang, Chao},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container site-footer__in">
+    <span>AlphaBet</span>
+    <span><a href="#top">Back to top ↑</a></span>
+  </div>
+</footer>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/logos.js"></script>
+<script src="assets/js/curves.js"></script>
+<script src="assets/js/math.js"></script>
+<script src="assets/js/dom.js"></script>
+<script src="assets/js/episode.js"></script>
+<script src="assets/js/compass.js"></script>
+<script src="assets/js/swap.js"></script>
+<script src="assets/js/horizon.js"></script>
+<script src="assets/js/grpo-curves.js"></script>
+<script src="assets/js/grpo-diag.js"></script>
+<script src="assets/js/table.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
