@@ -7,8 +7,8 @@
   // Fill in the arXiv URL here when the paper is live (the header "Paper" link follows it).
   const LINKS = {
     paper: { href: '', label: 'Paper', primary: true, icon: 'paper', fallback: '#paper' },
-    code: { href: 'https://anonymous.4open.science/r/AlphaBet-2417/', label: 'Code', icon: 'github' },     // → GitHub when public
-    data: { href: 'https://huggingface.co/datasets/liqinye/Forecast-Dojo', label: 'Data & Models', icon: 'hf' },
+    code: { href: 'https://github.com/AlphaBet-Agent/AlphaBet', label: 'Code', icon: 'github' },
+    data: { href: 'https://huggingface.co/collections/liqinye/alphabet', label: 'Data & Models', icon: 'hf' },
     bibtex: { href: '#paper', label: 'BibTeX', icon: 'quote' },
   };
   const ICONS = {
