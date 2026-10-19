@@ -6,7 +6,7 @@
   /* ---- project links: fill in when available; absent links render as quiet text, never dead buttons ---- */
   // Fill in the arXiv URL here when the paper is live (the header "Paper" link follows it).
   const LINKS = {
-    paper: { href: '', label: 'Paper', primary: true, icon: 'paper', fallback: '#paper' },
+    paper: { href: 'https://arxiv.org/pdf/2610.22684', label: 'Paper', primary: true, icon: 'paper', fallback: '#paper' },
     code: { href: 'https://github.com/AlphaBet-Agent/AlphaBet', label: 'Code', icon: 'github' },
     data: { href: 'https://huggingface.co/collections/liqinye/alphabet', label: 'Data & Models', icon: 'hf' },
     bibtex: { href: '#paper', label: 'BibTeX', icon: 'quote' },
