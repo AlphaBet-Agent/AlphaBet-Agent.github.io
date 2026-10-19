@@ -57,6 +57,16 @@ window.ABEpisode = (function () {
     const W = 1200, H = 538, X0 = 0, X1 = 1176;
     const dateX = STEPS.map((_, i) => 165 + i * 231), resX = 1040, tlY = 316;   // 165 · 396 · 627 · 858
     const scroller = el('div', { class: 'ep__scroller' }, container);
+    // where the figure scrolls, autoplay follows the agent only when the date changes, and never within 6 s of the reader's
+    // own sideways scroll (a vertical page swipe over the figure, or autoplay's own smooth scroll, does not count)
+    let followX = null, holdFollow = 0, intentAt = -1e9, progAt = -1e9, touch0 = null;
+    scroller.addEventListener('touchstart', e => { touch0 = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+    const intent = e => { const t = e.touches && e.touches[0];
+      const sideways = e.type === 'touchmove' ? touch0 && Math.abs(t.clientX - touch0.x) > Math.abs(t.clientY - touch0.y)
+        : e.type === 'wheel' ? Math.abs(e.deltaX) > Math.abs(e.deltaY) : e.type === 'pointerdown' ? e.pointerType === 'mouse' : true;
+      if (sideways) intentAt = performance.now(); };
+    ['touchmove', 'pointerdown', 'wheel', 'keydown'].forEach(t => scroller.addEventListener(t, intent, { passive: true }));
+    scroller.addEventListener('scroll', () => { const now = performance.now(); if (now - intentAt < 1200 && intentAt > progAt) { holdFollow = now + 6000; followX = null; } }, { passive: true });
     const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'ep__svg', role: 'img', 'aria-label': 'One longitudinal forecasting episode on a real question: on each forecast date the agent reasons, searches and reads news published by that date and runs code, in whatever order and as often as it chooses within its tool budget, then commits a forecast; the resolved outcome scores every dated forecast and each score is a training reward. Dates and probabilities are illustrative.' }, scroller);
     const defs = svg('defs', null, s);
     const head = (id, cls) => { const mk = svg('marker', { id, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs); svg('path', { d: 'M 0 0 L 10 5 L 0 10 z', class: cls }, mk); };
@@ -83,8 +93,9 @@ window.ABEpisode = (function () {
     const docEls = DOCS.map(d => svg('rect', { x: d.x - gw / 2, y: stripY + (d.row ? rowDy : -rowDy) - gh / 2, width: gw, height: gh, rx: 1.4, class: 'ep__doc ep__doc--future' }, s));
     const bnd = svg('g', { class: 'ep__bnd' }, s);
     svg('line', { x1: 0, x2: 0, y1: bandY + 54, y2: stripY + 20, class: 'ep__boundary' }, bnd);
-    const bndPill = svg('rect', { x: 4, y: bandY + 34, width: 120, height: 20, rx: 10, class: 'ep__bndpill' }, bnd);
-    const bndLbl = svg('text', { x: 12, y: bandY + 48, class: 'ep__bndlbl' }, bnd);
+    const bndFlag = svg('g', { class: 'ep__bndflag' }, bnd);
+    const bndPill = svg('rect', { x: 4, y: bandY + 34, width: 120, height: 20, rx: 10, class: 'ep__bndpill' }, bndFlag);
+    const bndLbl = svg('text', { x: 12, y: bandY + 48, class: 'ep__bndlbl' }, bndFlag);
     let hlW = 0;
     const sbBox = svg('rect', { x: sbX0, y: bandY, width: X1 - sbX0, height: bandH, rx: 12, class: 'ep__box' }, s);
     icon(s, 'terminal', sbX0 + 18, bandY + 13, 18, 'ep__icon--box');
@@ -189,10 +200,10 @@ window.ABEpisode = (function () {
       // each label sits under the thumb position for its value (native thumb ≈ 16px wide); the first and last hug the edges
       const pos = i === 0 ? { left: '0', transform: 'none' } : i === nStops - 1 ? { left: '100%', transform: 'translateX(-100%)' } : { left: `calc(8px + (100% - 16px) * ${i / (nStops - 1)})`, transform: 'translateX(-50%)' };
       const b = el('button', { type: 'button', class: 'ep__stop' + cls, style: pos, html: `<span class="ep__stop-long">${lbl}</span><span class="ep__stop-short">${short}</span>`, 'aria-pressed': 'false' }, stops);
-      b.addEventListener('click', () => { pause(true); render(i, -1); }); return b; });
-    range.addEventListener('input', () => { pause(true); render(+range.value, -1); });
+      b.addEventListener('click', () => { holdFollow = 0; pause(true); render(i, -1); }); return b; });
+    range.addEventListener('input', () => { holdFollow = 0; pause(true); render(+range.value, -1); });
     const play = el('button', { type: 'button', class: 'ep__play', 'aria-label': 'Pause the episode', html: PAUSE_SVG }, ctl);
-    play.addEventListener('click', () => { if (running) pause(true); else resume(); });
+    play.addEventListener('click', () => { if (running) pause(true); else { holdFollow = 0; resume(); } });
     scroller.addEventListener('scroll', () => { scroller.classList.toggle('is-end', scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 2); }, { passive: true });
 
     /* ---- state ---- */
@@ -208,7 +219,7 @@ window.ABEpisode = (function () {
       step = i; visited = visited || [];
       const cur = Math.min(i, N - 1), resolved = i >= STOP_RES, training = i >= STOP_TRAIN, x = dateX[cur];
       container.classList.toggle('is-resolved', resolved); container.classList.toggle('is-training', training);
-      range.value = i; range.setAttribute('aria-valuetext', training ? 'Training update' : resolved ? 'Resolved' : `${STEPS[cur].tau}, ${STEPS[cur].date}`);
+      range.value = i; range.style.setProperty('--f', i / STOP_TRAIN); range.setAttribute('aria-valuetext', training ? 'Training update' : resolved ? 'Resolved' : `${STEPS[cur].tau}, ${STEPS[cur].date}`);
       stopEls.forEach((d, k) => d.setAttribute('aria-pressed', String(k === i)));
       // corpus: cards published by the current date are readable (filled); later ones are outlines; a few readable ones
       // light up blue once the agent has searched — the evidence it retrieved on this date
@@ -219,8 +230,8 @@ window.ABEpisode = (function () {
       bnd.style.transform = `translateX(${x}px)`;
       const left = cur >= N - 2; bndLbl.textContent = `published by ${STEPS[cur].date}`;
       const tw = bndLbl.getComputedTextLength ? bndLbl.getComputedTextLength() : 110;
-      bndLbl.setAttribute('text-anchor', left ? 'end' : 'start'); bndLbl.setAttribute('x', left ? -12 : 12);
-      bndPill.setAttribute('width', tw + 16); bndPill.setAttribute('x', left ? -4 - (tw + 16) : 4);
+      // the flag glides to the left of the boundary for the last two dates (same pixels at rest as an end-anchored label)
+      bndPill.setAttribute('width', tw + 16); bndFlag.style.transform = left ? `translateX(${-(tw + 24)}px)` : 'translateX(0px)';
       lockLbl.style.opacity = cur >= N - 1 ? 0 : 1;
       agent.style.transform = `translateX(${x}px)`; chips.style.transform = `translateX(${x}px)`; connG.style.transform = `translateX(${x}px)`;
       agent.classList.toggle('is-idle', resolved); chips.classList.toggle('is-idle', resolved);
@@ -236,7 +247,8 @@ window.ABEpisode = (function () {
         g.g.classList.toggle('is-on', on); g.g.classList.toggle('is-cur', j === cur && !resolved);
         if (on !== (g.bars[0].h > 0)) setBars(j, on, j === cur && ph === P_FORECAST); });
       cardState.textContent = resolved ? 'revealed' : 'hidden';
-      if (mounted && scroller.scrollWidth > scroller.clientWidth + 4) { const k = scroller.scrollWidth / W; const target = resolved ? resX : x; scroller.scrollTo({ left: Math.max(0, target * k - scroller.clientWidth / 2), behavior: reducedMotion() ? 'auto' : 'smooth' }); }
+      if (mounted && scroller.scrollWidth > scroller.clientWidth + 4) { const k = scroller.scrollWidth / W; const target = resolved ? resX : x;
+        if (target !== followX && performance.now() > holdFollow) { followX = target; progAt = performance.now(); scroller.scrollTo({ left: Math.max(0, target * k - scroller.clientWidth / 2), behavior: reducedMotion() ? 'auto' : 'smooth' }); } }
     }
 
     /* ---- the self-running loop: a list of frames, played while the figure is in view ---- */
@@ -255,7 +267,7 @@ window.ABEpisode = (function () {
     function pause(byUser) { if (byUser) userPaused = true; if (!running) return; running = false; clearTimeout(timer); timer = null; play.innerHTML = PLAY_SVG; play.setAttribute('aria-label', 'Play the episode'); container.classList.remove('is-playing'); }
     function resume() { userPaused = false; idx = firstFrameOf[step] !== undefined ? firstFrameOf[step] : 0; if (step >= STOP_TRAIN) idx = 0; start(); }
     const autoplay = !reducedMotion();
-    render(autoplay ? 0 : STOP_TRAIN, -1); mounted = true;
+    render(autoplay ? 0 : STOP_TRAIN, autoplay ? -2 : -1); mounted = true;   // autoplay mounts in its own first frame, so nothing resets when it starts
     if (!autoplay) { play.innerHTML = PLAY_SVG; play.setAttribute('aria-label', 'Play the episode'); }
     else if ('IntersectionObserver' in window) {
       const io = new IntersectionObserver(es => es.forEach(e => { inView = e.isIntersecting; if (inView && !userPaused) start(); else if (!inView) pause(false); }), { threshold: 0.35 });

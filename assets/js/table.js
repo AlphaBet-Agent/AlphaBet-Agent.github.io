@@ -35,7 +35,7 @@ window.ABTable = (function () {
       const sec = SECTION[r.group];
       if (sec !== lastSection) {
         const sr = el('tr', { class: `rt__section rt__section--${sec}` }, tb);
-        el('th', { scope: 'rowgroup', colspan: 1 + metrics.length, text: SECTION_LABEL[sec] }, sr);
+        el('th', { scope: 'rowgroup', colspan: 1 + metrics.length, html: '<span>' + SECTION_LABEL[sec] + '</span>' }, sr);
         lastSection = sec;
       }
       const tr = el('tr', { class: `rt__row rt__row--${r.group}` + (r.best ? ' rt__row--best' : ''), 'data-group': r.group }, tb);
@@ -47,7 +47,7 @@ window.ABTable = (function () {
         cell(tr, r[mt.b][mt.k], r[mt.b][mt.ci], { pct: mt.pct, best: inBlock && rank[mt.b + mt.k].best === r.id, second: inBlock && rank[mt.b + mt.k].second === r.id });
       });
     });
-    el('p', { class: 'rt__foot', text: 'Gray ranges are 95% confidence intervals (event-clustered bootstrap for Forecast-Dojo, item bootstrap for FutureX). Bold and underline mark the best and second-best point estimates within the GLM-4.5-Air block.' }, container);
+    el('p', { class: 'rt__foot', html: 'Gray ranges are 95% confidence intervals (event-clustered bootstrap for <span class="nobr">Forecast-Dojo</span>, item bootstrap for FutureX). Bold and underline mark the best and second-best point estimates within the <span class="nobr">GLM-4.5-Air</span> block.' }, container);
   }
   return { mount };
 })();

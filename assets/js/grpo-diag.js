@@ -7,18 +7,25 @@ window.ABGrpoDiag = (function () {
     { key: 'entropy', label: 'Predictive entropy', sub: 'nats · higher means more spread', dom: [0.6, 1.6], fmt: v => v.toFixed(3), better: null },
   ];
   function mount(container) {
-    let reward = 'brierReward';
+    let reward = container.dataset.reward || 'brierReward';
     clear(container); container.classList.add('gdiag');
     const head = el('div', { class: 'gdiag__head' }, container);
-    const seg = segmented([{ id: 'brierReward', label: 'Brier reward' }, { id: 'logReward', label: 'Log-score reward' }], reward, id => { reward = id; render(); }, '', 'Training reward');
+    const seg = segmented([{ id: 'brierReward', label: 'Brier reward' }, { id: 'logReward', label: 'Log-score reward' }], reward, id => { reward = container.dataset.reward = id; render(); }, '', 'Training reward');
     head.appendChild(seg.root);
     const legend = el('div', { class: 'gdiag__legend', html: '<span class="gdiag__key gdiag__key--std"></span> with std normalization <span class="gdiag__key gdiag__key--nostd"></span> without std normalization' }, head);
-    const W = 1120, rowH = 60, m = { l: 290, r: 44, t: 12, b: 6 }, H = m.t + m.b + rowH * ROWS.length, iw = W - m.l - m.r;
-    const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'gdiag__svg', role: 'img', 'aria-label': 'Diagnostics comparing GRPO with and without standard-deviation normalization' }, container);
+    // phones: each row's label sits above a full-width track instead of beside it
+    const narrow = container.clientWidth > 0 && container.clientWidth < 560;
+    const W = narrow ? Math.max(340, Math.round(container.clientWidth - 2 * parseFloat(getComputedStyle(container).paddingLeft))) : 1120, rowH = narrow ? 100 : 60, m = narrow ? { l: 14, r: 22, t: 4, b: 4 } : { l: 290, r: 44, t: 12, b: 6 }, H = m.t + m.b + rowH * ROWS.length, iw = W - m.l - m.r;
+    const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'gdiag__svg' + (narrow ? ' gdiag__svg--narrow' : ''), role: 'img', 'aria-label': 'Diagnostics comparing GRPO with and without standard-deviation normalization' }, container);
     const items = ROWS.map((r, i) => {
-      const y = m.t + rowH * i + rowH / 2;
-      svg('text', { x: m.l - 16, y: y - 4, class: 'gdiag__label', 'text-anchor': 'end', text: r.label }, s);
-      svg('text', { x: m.l - 16, y: y + 12, class: 'gdiag__sub', 'text-anchor': 'end', text: r.sub }, s);
+      const y = narrow ? m.t + rowH * i + 66 : m.t + rowH * i + rowH / 2;
+      if (narrow) {
+        svg('text', { x: m.l, y: y - 50, class: 'gdiag__label', text: r.label }, s);
+        svg('text', { x: m.l, y: y - 33, class: 'gdiag__sub', text: r.sub }, s);
+      } else {
+        svg('text', { x: m.l - 16, y: y - 4, class: 'gdiag__label', 'text-anchor': 'end', text: r.label }, s);
+        svg('text', { x: m.l - 16, y: y + 12, class: 'gdiag__sub', 'text-anchor': 'end', text: r.sub }, s);
+      }
       svg('line', { x1: m.l, x2: m.l + iw, y1: y, y2: y, class: 'gdiag__track' }, s);
       const link = svg('line', { y1: y, y2: y, class: 'gdiag__link' }, s);
       const dStd = svg('circle', { cy: y, r: 7, class: 'gdiag__dot gdiag__dot--std' }, s);
@@ -44,6 +51,10 @@ window.ABGrpoDiag = (function () {
       const G = ALPHABET_DATA.grpo;
     }
     render();
+    if (!container.__gdiagResize) {   // re-lay out once when crossing the phone width
+      container.__gdiagResize = true; let was = narrow;
+      window.addEventListener('resize', () => { const nb = container.clientWidth > 0 && container.clientWidth < 560; if (nb !== was) { was = nb; const f = container.contains(document.activeElement) && document.activeElement.dataset.id; mount(container); if (f) container.querySelector('.seg__btn[data-id="' + f + '"]').focus(); } }, { passive: true });
+    }
     return {};
   }
   return { mount };

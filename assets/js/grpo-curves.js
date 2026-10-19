@@ -4,7 +4,7 @@ window.ABCurves = (function () {
   const { el, svg, clear } = ABDom; const M = ABMath;
   const COLS = [
     { key: 'brier', title: 'Brier score ↓', fmt: v => v.toFixed(3) },
-    { key: 'logProb', title: 'Log score ↑', fmt: v => v.toFixed(3) },
+    { key: 'logProb', title: 'Log score ↑', fmt: v => v.toFixed(3).replace('-', '−') },   // true minus sign, as elsewhere on the page
     { key: 'acc', title: 'Accuracy ↑', fmt: v => v.toFixed(3) },
   ];
   const ROWS = [{ key: 'brierReward', title: 'Brier reward' }, { key: 'logReward', title: 'Log-score reward' }];
@@ -36,7 +36,7 @@ window.ABCurves = (function () {
         const lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo) * 0.18;
         const sx = M.scale(sx0, sx1, x0, x0 + pw), sy = M.scale(lo - pad, hi + pad, y0 + ph, y0);
         if (ri === 0) svg('text', { x: x0 + pw / 2, y: y0 - 12, class: 'cv-title', 'text-anchor': 'middle', text: col.title }, s);
-        M.ticks(lo - pad, hi + pad, 4).forEach(v => { svg('line', { x1: x0, x2: x0 + pw, y1: sy(v), y2: sy(v), class: 'grid' }, s); svg('text', { x: x0 - 8, y: sy(v) + 4, class: 'tick', 'text-anchor': 'end', text: col.key === 'logProb' ? v.toFixed(2) : v.toFixed(col.key === 'acc' ? 2 : 3) }, s); });
+        M.ticks(lo - pad, hi + pad, 4).forEach(v => { svg('line', { x1: x0, x2: x0 + pw, y1: sy(v), y2: sy(v), class: 'grid' }, s); svg('text', { x: x0 - 8, y: sy(v) + 4, class: 'tick', 'text-anchor': 'end', text: (col.key === 'logProb' ? v.toFixed(2) : v.toFixed(col.key === 'acc' ? 2 : 3)).replace('-', '−') }, s); });
         [0, 10, 20, 30, 39].forEach(v => svg('text', { x: sx(v), y: y0 + ph + 18, class: 'tick', 'text-anchor': 'middle', text: v }, s));
         svg('line', { x1: x0, x2: x0 + pw, y1: y0 + ph, y2: y0 + ph, class: 'axis' }, s);
         // shaded gap between the two series

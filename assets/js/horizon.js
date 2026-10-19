@@ -14,13 +14,13 @@ window.ABHorizon = (function () {
     const y0 = Math.floor((Math.min(...allV) - 0.02) * 20) / 20, y1 = Math.ceil((Math.max(...allV) + 0.02) * 20) / 20;
     const sy = M.scale(y0, y1, m.t + ih, m.t); // paper orientation: higher Brier higher on screen
     const sx = i => m.l + iw * (i + 0.5) / bins.length;
+    // longitudinal gain band between single-date and memory-free (opaque, so it is painted under the grid)
+    const band = svg('path', { class: 'horizon__band' }, s);
+    band.setAttribute('d', 'M ' + bins.map((b, i) => `${sx(i)} ${sy(b.single)}`).join(' L ') + ' L ' + bins.slice().reverse().map((b, i) => `${sx(bins.length - 1 - i)} ${sy(b.free)}`).join(' L ') + ' Z');
     M.ticks(y0, y1, 5).forEach(v => { svg('line', { x1: m.l, x2: m.l + iw, y1: sy(v), y2: sy(v), class: 'grid' }, s); svg('text', { x: m.l - 10, y: sy(v) + 4, class: 'tick', 'text-anchor': 'end', text: v.toFixed(2) }, s); });
     svg('text', { x: 16, y: m.t + ih / 2, class: 'axis-title', 'text-anchor': 'middle', transform: `rotate(-90 16 ${m.t + ih / 2})`, text: 'Brier score ↓' }, s);
     svg('text', { x: m.l + iw / 2, y: H - 6, class: 'axis-title', 'text-anchor': 'middle', text: 'Days to settlement' }, s);
 
-    // longitudinal gain band between single-date and memory-free
-    const band = svg('path', { class: 'horizon__band' }, s);
-    band.setAttribute('d', 'M ' + bins.map((b, i) => `${sx(i)} ${sy(b.single)}`).join(' L ') + ' L ' + bins.slice().reverse().map((b, i) => `${sx(bins.length - 1 - i)} ${sy(b.free)}`).join(' L ') + ' Z');
 
     const series = [
       { key: 'base', ciKey: 'baseCI', cls: 'base', label: 'GLM-4.5-Air' },
@@ -43,7 +43,8 @@ window.ABHorizon = (function () {
       series.forEach(sr => {
         svg('circle', { class: `horizon__dot horizon__dot--${sr.cls}`, cx: sx(i), cy: sy(b[sr.key]), r: sr.cls === 'free' ? 6 : 5 }, g);
         const [dx, dy, anchor] = POS[PLACE[sr.cls][i]];
-        svg('text', { class: `horizon__val num horizon__val--${sr.cls}`, x: sx(i) + dx, y: sy(b[sr.key]) + dy, 'text-anchor': anchor, text: b[sr.key].toFixed(3) }, g);
+        const inBand = sr.cls === 'single' && PLACE[sr.cls][i] === 'b';   // the one label drawn inside the gain band
+        svg('text', { class: `horizon__val num horizon__val--${sr.cls}${inBand ? ' horizon__val--inband' : ''}`, x: sx(i) + dx, y: sy(b[sr.key]) + dy, 'text-anchor': anchor, text: b[sr.key].toFixed(3) }, g);
       });
       svg('text', { class: 'horizon__xlbl', x: sx(i), y: m.t + ih + 22, 'text-anchor': 'middle', text: b.label.replace('< 3', 'under 3').replace('> 14', 'over 14') }, g);
       svg('text', { class: 'horizon__n num', x: sx(i), y: m.t + ih + 40, 'text-anchor': 'middle', text: `n = ${b.n}` }, g);
@@ -53,12 +54,15 @@ window.ABHorizon = (function () {
           series.map(sr => `<div class="tip__row"><span>${sr.label}</span><b>${b[sr.key].toFixed(3)}</b><i>${b[sr.ciKey][0].toFixed(3)}–${b[sr.ciKey][1].toFixed(3)}</i></div>`).join('') +
           `<div class="tip__note">Memory-free minus single-date: −${b.longGain.toFixed(3)} Brier</div>`;
         tip.hidden = false;
-        const rect = container.getBoundingClientRect(), k = rect.width / W;
-        tip.style.left = (i >= bins.length / 2 ? Math.max(8, sx(i) * k - tip.offsetWidth - 14) : Math.min(rect.width - tip.offsetWidth - 8, sx(i) * k + 14)) + 'px';
-        tip.style.top = Math.max(0, sy(b.free) * k - tip.offsetHeight - 16) + 'px';
+        // place against the drawn SVG (centred, padded, maybe scrolled), clamped to the visible part of the panel
+        const cr = container.getBoundingClientRect(), svr = s.getBoundingClientRect(), k = svr.width / W;
+        const ox = svr.left - cr.left + container.scrollLeft, oy = svr.top - cr.top, px = ox + sx(i) * k;
+        const lo = container.scrollLeft + 8, hi = container.scrollLeft + container.clientWidth - tip.offsetWidth - 8;
+        tip.style.left = Math.max(lo, Math.min(hi, i >= bins.length / 2 ? px - tip.offsetWidth - 14 : px + 14)) + 'px';
+        tip.style.top = Math.max(oy, oy + sy(b.free) * k - tip.offsetHeight - 16) + 'px';
       };
       const hide = () => { g.classList.remove('is-on'); tip.hidden = true; };
-      g.addEventListener('mouseenter', show); g.addEventListener('mouseleave', hide); g.addEventListener('focus', show); g.addEventListener('blur', hide);
+      g.addEventListener('mouseenter', show); g.addEventListener('mouseleave', hide); g.addEventListener('focus', () => { const cr = container.getBoundingClientRect(), r = g.getBoundingClientRect(); if (r.right > cr.right) container.scrollLeft += r.right - cr.right; else if (r.left < cr.left) container.scrollLeft -= cr.left - r.left; show(); }); g.addEventListener('blur', hide);
       g.addEventListener('keydown', ev => { if (ev.key === 'Escape') hide(); });
       return g;
     });
@@ -67,10 +71,12 @@ window.ABHorizon = (function () {
     svg('text', { x: m.l + iw + 14, y: m.t + ih + 22, class: 'horizon__settlelbl', 'text-anchor': 'middle', text: 'settles' }, s);
     // legend: the three items span the plot width with equal gaps (first flush left, last flush right)
     const lg = svg('g', { class: 'horizon__legend' }, s);
+    // each key shows its line style as well as its dot, like the GRPO legend
     const items = series.map(sr => { const g = svg('g', null, lg);
-      svg('circle', { cx: 6, cy: 0, r: 5, class: `horizon__dot horizon__dot--${sr.cls}` }, g);
-      const t = svg('text', { x: 17, y: 4.5, class: 'legend', text: sr.label }, g);
-      return { g, w: 17 + (t.getComputedTextLength ? t.getComputedTextLength() : sr.label.length * 7.6) }; });
+      svg('line', { x1: 0, x2: 32, y1: 0, y2: 0, class: `horizon__line horizon__line--${sr.cls}` }, g);
+      svg('circle', { cx: 16, cy: 0, r: sr.cls === 'free' ? 4.5 : 4, class: `horizon__dot horizon__dot--${sr.cls}` }, g);
+      const t = svg('text', { x: 40, y: 4.5, class: 'legend', text: sr.label }, g);
+      return { g, w: 40 + (t.getComputedTextLength ? t.getComputedTextLength() : sr.label.length * 7.6) }; });
     const gapL = (iw - items.reduce((a, it) => a + it.w, 0)) / (items.length - 1); let lx = m.l;
     items.forEach(it => { it.g.setAttribute('transform', `translate(${lx}, ${m.t - 20})`); lx += it.w + gapL; });
     return {};

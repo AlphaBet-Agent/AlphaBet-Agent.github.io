@@ -1,24 +1,29 @@
 /* Results figure: two panels (Forecast-Dojo, FutureX) in the paper's Figure 1 idiom — dots with leader lines to
-   ringed model icons, dashed GLM-4.5-Air → AlphaBet arrow, in-chart deltas. Paper orientation: Brier increases upward,
+   ringed model icons, dashed GLM-4.5-Air → AlphaBet arrow, in-chart deltas. AlphaBet follows the paper's v12 teaser:
+   an ivory badge with the project mark, a gold star at its exact score, a muted-gold arrow and deep-gold deltas. Paper orientation: Brier increases upward,
    so lower-right is better. Data: ALPHABET_DATA.main; icons: ALPHABET_LOGOS (optional). */
 window.ABCompass = (function () {
   const { svg, el, clear, reducedMotion } = ABDom;
   const M = ABMath;
   const LOGO = { glm: 'glm', blf: 'blf', openforecaster: 'openforecaster', minimax: 'minimax', 'sonnet-high': 'sonnet', 'sonnet-low': 'sonnet', kimi: 'kimi', qwen: 'qwen', 'ab-free': 'alphabet' };
   // Icon offsets from the data point, in px: [dx, dy, labelSide]. Hand-placed per benchmark.
-  // [dx, dy, labelPlacement] — icon offset from the data point in px; label placement relative to the icon
+  // [dx, dy, labelPlacement, labelGap] — icon offset from the data point in px; label placement relative to the icon;
+  // optional gap between an 'above' label's baseline and the ring (default 8)
   const ICON = {
     dojo: {
       'openforecaster': [36, -24, 'right'], 'glm': [-30, -38, 'above'], 'minimax': [36, -26, 'right'], 'blf': [-32, -34, 'above'],
-      'sonnet-low': [0, -48, 'above'], 'kimi': [46, -36, 'right'], 'qwen': [-36, 30, 'left'], 'sonnet-high': [-40, 50, 'left'], 'ab-free': [60, 12, 'above'],
+      'sonnet-low': [0, -48, 'above'], 'kimi': [46, -36, 'right'], 'qwen': [-36, 30, 'left'], 'sonnet-high': [-40, 50, 'left'], 'ab-free': [60, 5, 'above'],
     },
     futurex: {
       'glm': [36, -32, 'right'], 'blf': [-30, -42, 'above'], 'openforecaster': [40, -22, 'right'], 'sonnet-low': [-46, 0, 'left'],
-      'minimax': [-40, 30, 'left'], 'qwen': [34, -8, 'aboveleft'], 'kimi': [-44, 24, 'left'], 'sonnet-high': [42, 28, 'left'], 'ab-free': [-50, 0, 'above'],
+      'minimax': [-40, 30, 'left'], 'qwen': [34, -8, 'aboveleft'], 'kimi': [-44, 24, 'left'], 'sonnet-high': [42, 28, 'left'], 'ab-free': [-50, 0, 'above', 5.5],
     },
   };
-  const COLORS = { 'glm': '#6B7F94', 'blf': '#6B7F94', 'openforecaster': '#6B7F94', 'minimax': '#4E968A', 'sonnet-low': '#BA765E', 'sonnet-high': '#BA765E', 'kimi': '#977293', 'qwen': '#7C83B1', 'ab-free': '#234F9F' };
+  const COLORS = { 'glm': '#6B7F94', 'blf': '#6B7F94', 'openforecaster': '#6B7F94', 'minimax': '#4E968A', 'sonnet-low': '#BA765E', 'sonnet-high': '#BA765E', 'kimi': '#977293', 'qwen': '#7C83B1', 'ab-free': '#273B31' };
   const NAMES = { 'openforecaster': '+OpenForecaster', 'glm': 'GLM-4.5-Air', 'minimax': 'MiniMax-M2.5', 'blf': '+BLF', 'sonnet-low': 'Sonnet 4.6 (low)', 'kimi': 'Kimi K2.5', 'qwen': 'Qwen3.5 397B', 'sonnet-high': 'Sonnet 4.6 (high)', 'ab-free': 'AlphaBet' };
+  // AlphaBet's exact score: the paper's five-point star, point up (outer radius 7, inner 0.382 of it)
+  const STAR = Array.from({ length: 10 }, (_, k) => { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 7 * 0.381966 : 7;
+    return `${(rr * Math.cos(a)).toFixed(2)},${(rr * Math.sin(a)).toFixed(2)}`; }).join(' ');
   function displayName(r) { return r.group === 'ours' ? 'AlphaBet · ' + r.variant : (r.variant ? `${r.name} (${r.variant})` : r.name); }
 
   function panel(container, bench, data, title, sub) {
@@ -30,6 +35,8 @@ window.ABCompass = (function () {
     svg('path', { d: 'M 0 0 L 10 5 L 0 10 z', class: 'compass__arrowhead' }, mk);
     const clip = svg('clipPath', { id: `ab-sweep-${bench}` }, defs);
     const sweep = svg('rect', { x: -W, y: 0, width: 3 * W, height: H, class: 'compass__sweep' }, clip);
+    const pc = svg('clipPath', { id: `ab-plot-${bench}` }, defs);
+    svg('rect', { x: m.l, y: m.t, width: iw, height: ih }, pc);
     const tip = el('div', { class: 'tip', role: 'tooltip', hidden: true }, root);
 
     // scales (paper orientation: higher Brier higher on screen)
@@ -86,28 +93,30 @@ window.ABCompass = (function () {
     svg('text', { x: m.l + iw - 4, y: m.t + 40, class: 'cp-delta', 'text-anchor': 'end', text: `−${Math.abs(dl.brierRelPct).toFixed(1)}% Brier` }, s);
 
     // points
+    // hover-only CIs: clipped to the plot, drawn under every icon and label
+    const gCI = svg('g', { 'clip-path': `url(#ab-plot-${bench})` }, s);
     const gP = svg('g', null, s);
     const logos = window.ALPHABET_LOGOS || {};
     data.forEach(r => {
       const d = r[bench], x = sx(d.acc), y = sy(d.brier), off = ICON[bench][r.id] || [28, -20, 'right'];
       const grp = svg('g', { class: `pt pt--${r.group}${r.best ? ' pt--best' : ''}`, tabindex: 0, role: 'button', 'aria-label': `${displayName(r)}: accuracy ${d.acc.toFixed(1)} percent (${d.accCI[0].toFixed(1)} to ${d.accCI[1].toFixed(1)}), Brier ${d.brier.toFixed(3)} (${d.brierCI[0].toFixed(3)} to ${d.brierCI[1].toFixed(3)})`, transform: `translate(${x} ${y})` }, gP);
       const col = COLORS[r.id]; grp.style.setProperty('--c', col);
-      const ci = svg('g', { class: 'ci' }, grp);
-      svg('line', { x1: sx(d.accCI[0]) - x, x2: sx(d.accCI[1]) - x, y1: 0, y2: 0 }, ci);
-      svg('line', { x1: 0, x2: 0, y1: sy(d.brierCI[0]) - y, y2: sy(d.brierCI[1]) - y }, ci);
-      const R = r.best ? 20 : 17, ir = r.best ? 6.5 : 5;
+      const ci = svg('g', { class: 'ci' }, gCI); ci.style.setProperty('--c', col);
+      svg('line', { x1: sx(d.accCI[0]), x2: sx(d.accCI[1]), y1: y, y2: y }, ci);
+      svg('line', { x1: x, x2: x, y1: sy(d.brierCI[0]), y2: sy(d.brierCI[1]) }, ci);
+      const R = r.best ? 20 : 17, ir = r.best ? 8 : 5;   // AlphaBet's leader starts clear of its star
       const L = Math.hypot(off[0], off[1]);
       svg('line', { class: 'pt__leader', x1: off[0] * ir / L, y1: off[1] * ir / L, x2: off[0] - off[0] * R / L, y2: off[1] - off[1] * R / L }, grp);
       svg('circle', { class: 'pt__hit', r: 16 }, grp);
-      svg('circle', { class: 'pt__dot', r: ir }, grp);
+      if (r.best) svg('polygon', { class: 'pt__star', points: STAR }, grp); else svg('circle', { class: 'pt__dot', r: ir }, grp);
       const icon = svg('g', { class: 'pt__icon', transform: `translate(${off[0]} ${off[1]})` }, grp);
       svg('circle', { class: 'pt__ring', r: R }, icon);
       const lg = logos[LOGO[r.id]];
-      const sz = r.best ? 22 : 20;
+      const sz = r.best ? 1.68 * R : 20;   // AlphaBet's mark reaches 0.84 of its badge radius, as in the paper
       if (lg) { const li = svg('svg', { viewBox: lg.viewBox, x: -sz / 2, y: -sz / 2, width: sz, height: sz, class: 'pt__logo' }, icon); li.innerHTML = lg.body; }
       else svg('text', { class: 'pt__lbl', 'text-anchor': 'middle', y: 5, text: NAMES[r.id][0] }, icon);
       const place = off[2];
-      if (place === 'above') svg('text', { class: 'pt__lbl', x: off[0], y: off[1] - R - 8, 'text-anchor': 'middle', text: NAMES[r.id] }, grp);
+      if (place === 'above') svg('text', { class: 'pt__lbl', x: off[0], y: off[1] - R - (off[3] ?? 8), 'text-anchor': 'middle', text: NAMES[r.id] }, grp);
       else if (place === 'aboveleft') svg('text', { class: 'pt__lbl', x: off[0] + R * 0.6, y: off[1] - R - 7, 'text-anchor': 'end', text: NAMES[r.id] }, grp);
       else if (place === 'aboveright') svg('text', { class: 'pt__lbl', x: off[0] - R * 0.6, y: off[1] - R - 7, 'text-anchor': 'start', text: NAMES[r.id] }, grp);
       else if (place === 'below') svg('text', { class: 'pt__lbl', x: off[0], y: off[1] + R + 16, 'text-anchor': 'middle', text: NAMES[r.id] }, grp);
@@ -139,7 +148,7 @@ window.ABCompass = (function () {
         el('div', { class: 'dp__name', html: `${NAMES[r.id]} <small>${d.acc.toFixed(1)}%</small>` }, row);
         const track = el('div', { class: 'dp__track' }, row);
         el('span', { class: 'dp__ci', style: { left: sx(d.brierCI[0]) + '%', width: (sx(d.brierCI[1]) - sx(d.brierCI[0])) + '%' } }, track);
-        el('span', { class: 'dp__dot', style: { left: sx(d.brier) + '%' } }, track);
+        el('span', { class: 'dp__dot', style: { left: sx(d.brier) + '%' }, html: r.best ? `<svg viewBox="-8 -8 16 16" aria-hidden="true"><polygon points="${STAR}"/></svg>` : null }, track);
         el('div', { class: 'dp__v num', text: d.brier.toFixed(3) }, row); });
     });
     return dot;

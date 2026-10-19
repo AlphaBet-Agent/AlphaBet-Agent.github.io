@@ -36,7 +36,8 @@
   const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 24);
   onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
   const navLinks = [...document.querySelectorAll('.main-nav a[href^="#"]')];
-  const sections = navLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  // observe every section, so the highlight clears in the hero and in 05 (no nav item there)
+  const sections = [...document.querySelectorAll('main > section[id]')];
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver(es => {
       es.forEach(e => { if (e.isIntersecting) { navLinks.forEach(a => a.classList.toggle('is-active', a.getAttribute('href') === '#' + e.target.id)); } });
@@ -58,7 +59,7 @@
   mountIf('gdiag', n => ABGrpoDiag.mount(n));
   mountIf('results-table', n => ABTable.mount(n));
   // scrollable chart containers: drop the right-edge fade once scrolled to the end (or when nothing overflows)
-  document.querySelectorAll('.horizon, .curves, .gdiag').forEach(sc => { const f = () => sc.classList.toggle('is-end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2); sc.addEventListener('scroll', f, { passive: true }); window.addEventListener('resize', f, { passive: true }); f(); });
+  document.querySelectorAll('.horizon, .curves, .gdiag, .rt').forEach(sc => { const f = () => sc.classList.toggle('is-end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2); sc.addEventListener('scroll', f, { passive: true }); window.addEventListener('resize', f, { passive: true }); f(); });
 
   /* ---- appendix panels built from data ---- */
   mountIf('data-panel', n => {
@@ -107,7 +108,10 @@
       try { katex.render(n.dataset.tex, n, { displayMode: !n.classList.contains('math--inline'), throwOnError: false }); } catch (e) { /* keep plain text */ }
     });
   }
-  if (window.katex) renderMath(); else { const k = document.querySelector('script[src*="katex"]'); if (k) k.addEventListener('load', renderMath); }
+  // render only once KaTeX's stylesheet is live (it loads with the media=print trick), so formulas never paint unstyled
+  const kcss = document.querySelector('link[rel="stylesheet"][href*="katex"]');
+  const whenCss = fn => { if (!kcss || kcss.media !== 'print') fn(); else kcss.addEventListener('load', fn, { once: true }); };
+  if (window.katex) whenCss(renderMath); else { const k = document.querySelector('script[src*="katex"]'); if (k) k.addEventListener('load', () => whenCss(renderMath)); }
 
   /* ---- BibTeX copy ---- */
   const copy = document.getElementById('copy-bib');
